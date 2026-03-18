@@ -943,12 +943,29 @@
         </div>
     </div>
 
-    <script>
-        const STORAGE_KEY = 'whiteboard_items';
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCQM_SvYrxR7bLIz_LQtYHGMWcNtEgVJPs",
+            authDomain: "whiteboard-58bff.firebaseapp.com",
+            projectId: "whiteboard-58bff",
+            storageBucket: "whiteboard-58bff.firebasestorage.app",
+            messagingSenderId: "805456951507",
+            appId: "1:805456951507:web:e46e861cfe36748cdf7c26",
+            measurementId: "G-LCJQ5LNTZN"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const itemsRef = collection(db, 'items');
+
         const THEME_KEY = 'whiteboard_theme';
 
         // State
-        let items = loadItems();
+        let items = [];
         let searchQuery = '';
         let hasRichContent = false;
 
@@ -985,19 +1002,38 @@
         initTheme();
         themeToggle.addEventListener('click', toggleTheme);
 
-        // Load items from localStorage
-        function loadItems() {
+        // Real-time listener: Firestore -> local state
+        const q = query(itemsRef, orderBy('created', 'desc'));
+        onSnapshot(q, (snapshot) => {
+            items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            render();
+        }, (err) => {
+            console.error('Firestore listener error:', err);
+            showToast('Sync error');
+        });
+
+        // Save item to Firestore
+        async function saveItem(item) {
             try {
-                const data = localStorage.getItem(STORAGE_KEY);
-                return data ? JSON.parse(data) : [];
-            } catch {
-                return [];
+                await setDoc(doc(db, 'items', item.id), {
+                    content: item.content,
+                    isRich: item.isRich || false,
+                    created: item.created
+                });
+            } catch (err) {
+                console.error('Save failed:', err);
+                showToast('Failed to save');
             }
         }
 
-        // Save items to localStorage
-        function saveItems() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        // Remove item from Firestore
+        async function removeItem(id) {
+            try {
+                await deleteDoc(doc(db, 'items', id));
+            } catch (err) {
+                console.error('Delete failed:', err);
+                showToast('Failed to delete');
+            }
         }
 
         // Show toast notification
@@ -1067,26 +1103,22 @@
 
             const isRich = isRichHtml(html);
             const item = {
-                id: Date.now(),
+                id: String(Date.now()),
                 content: isRich ? sanitizeHtml(html) : text,
                 isRich: isRich,
                 created: Date.now()
             };
 
-            items.unshift(item);
-            saveItems();
+            saveItem(item);
             clipInput.innerHTML = '';
             hasRichContent = false;
             formatBadge.classList.remove('visible');
-            render();
             showToast('Item added');
         }
 
         // Delete item
         function deleteItem(id) {
-            items = items.filter(item => item.id !== id);
-            saveItems();
-            render();
+            removeItem(id);
             showToast('Item removed');
         }
 
@@ -1150,7 +1182,7 @@
                     const text = editEl.innerText.trim();
                     if (text) {
                         item.content = sanitizeHtml(html);
-                        saveItems();
+                        saveItem(item);
                         showToast('Item updated');
                     }
                 }
@@ -1158,7 +1190,7 @@
                 const editEl = document.getElementById(`edit-${id}`);
                 if (editEl && editEl.value.trim()) {
                     item.content = editEl.value.trim();
-                    saveItems();
+                    saveItem(item);
                     showToast('Item updated');
                 }
             }
@@ -1244,7 +1276,7 @@
                                 <div class="edit-area" id="edit-${item.id}" contenteditable="true">${item.content}</div>
                                 <div class="edit-actions">
                                     <button class="edit-cancel-btn" onclick="render()">Cancel</button>
-                                    <button class="edit-save-btn" onclick="saveEdit(${item.id})">Save</button>
+                                    <button class="edit-save-btn" onclick="saveEdit('${item.id}')">Save</button>
                                 </div>
                             </div>
                         `;
@@ -1260,7 +1292,7 @@
                             <textarea class="edit-area" id="edit-${item.id}">${escapeHtml(item.content)}</textarea>
                             <div class="edit-actions">
                                 <button class="edit-cancel-btn" onclick="render()">Cancel</button>
-                                <button class="edit-save-btn" onclick="saveEdit(${item.id})">Save</button>
+                                <button class="edit-save-btn" onclick="saveEdit('${item.id}')">Save</button>
                             </div>
                         </div>
                     `;
@@ -1279,9 +1311,9 @@
                                 ${typeBadge}
                             </div>
                             <div class="clip-actions">
-                                <button class="clip-action-btn" onclick="copyItem(${item.id})">Copy</button>
-                                <button class="clip-action-btn" onclick="startEdit(${item.id})">Edit</button>
-                                <button class="clip-action-btn delete" onclick="deleteItem(${item.id})">Del</button>
+                                <button class="clip-action-btn" onclick="copyItem('${item.id}')">Copy</button>
+                                <button class="clip-action-btn" onclick="startEdit('${item.id}')">Edit</button>
+                                <button class="clip-action-btn delete" onclick="deleteItem('${item.id}')">Del</button>
                             </div>
                         </div>
                         <div class="${contentClass}">${contentHtml}</div>
@@ -1389,9 +1421,8 @@
             if (items.length === 0) return;
             const confirmed = await showConfirm('Clear all items from the whiteboard?');
             if (confirmed) {
-                items = [];
-                saveItems();
-                render();
+                const promises = items.map(item => removeItem(item.id));
+                await Promise.all(promises);
                 showToast('All items cleared');
             }
         });
@@ -1423,8 +1454,12 @@
             sel.addRange(range);
         });
 
-        // Initial render
-        render();
+        // Expose functions to onclick handlers (module scope)
+        window.render = render;
+        window.copyItem = copyItem;
+        window.startEdit = startEdit;
+        window.saveEdit = saveEdit;
+        window.deleteItem = deleteItem;
     </script>
 
 </body>
