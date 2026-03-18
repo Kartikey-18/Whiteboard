@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Whiteboard - A portable personal clipboard. Write, edit, and share anything.">
+    <title>Whiteboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-surface-primary: #0a0a0a;
+            --color-surface-secondary: #111111;
+            --color-surface-tertiary: #151515;
+            --color-surface-hover: #181818;
+            --color-surface-elevated: #0f0f0f;
+
+            --color-border-subtle: rgba(255, 255, 255, 0.08);
+            --color-border-default: rgba(255, 255, 255, 0.15);
+            --color-border-emphasis: rgba(255, 255, 255, 0.25);
+
+            --color-text-muted: rgba(255, 255, 255, 0.4);
+            --color-text-secondary: rgba(255, 255, 255, 0.6);
+            --color-text-default: rgba(255, 255, 255, 0.7);
+            --color-text-emphasis: rgba(255, 255, 255, 0.8);
+            --color-text-primary: rgba(255, 255, 255, 0.98);
+
+            --color-accent-cyan: rgba(129, 230, 217, 0.9);
+            --color-accent-purple: rgba(183, 148, 244, 0.9);
+            --color-accent-green: rgba(154, 230, 180, 0.9);
+            --color-accent-blue: rgba(99, 179, 237, 0.9);
+            --color-accent-red: rgba(245, 101, 101, 0.9);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--color-surface-primary);
+            color: var(--color-text-default);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Scanlines overlay */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.03) 2px,
+                rgba(0, 0, 0, 0.03) 4px
+            );
+        }
+
+        /* Grid background */
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.4;
+            background:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        /* Animations */
+        @keyframes glitch {
+            0% { text-shadow: 2px 0 var(--color-accent-cyan), -2px 0 var(--color-accent-purple); transform: translate(0); }
+            20% { text-shadow: -2px 0 var(--color-accent-cyan), 2px 0 var(--color-accent-purple); transform: translate(-2px, 2px); }
+            40% { text-shadow: 2px 0 var(--color-accent-cyan), -2px 0 var(--color-accent-purple); transform: translate(2px, -2px); }
+            60% { text-shadow: -2px 0 var(--color-accent-cyan), 2px 0 var(--color-accent-purple); transform: translate(-2px, 2px); }
+            80% { text-shadow: 2px 0 var(--color-accent-cyan), -2px 0 var(--color-accent-purple); transform: translate(2px, -2px); }
+            100% { text-shadow: none; transform: translate(0); }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* Nav */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 1.25rem 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            background: rgba(10, 10, 10, 0.85);
+            border-bottom: 1px solid var(--color-border-subtle);
+        }
+
+        .logo {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: -0.02em;
+            cursor: default;
+            transition: all 0.3s ease;
+        }
+
+        .logo:hover {
+            animation: glitch 0.3s ease;
+        }
+
+        .logo span {
+            color: var(--color-accent-cyan);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-btn {
+            background: none;
+            border: 1px solid var(--color-border-default);
+            color: var(--color-text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .nav-btn:hover {
+            border-color: var(--color-accent-cyan);
+            color: var(--color-accent-cyan);
+            background: rgba(129, 230, 217, 0.05);
+        }
+
+        .nav-btn.primary {
+            background: rgba(129, 230, 217, 0.1);
+            border-color: var(--color-accent-cyan);
+            color: var(--color-accent-cyan);
+        }
+
+        .nav-btn.primary:hover {
+            background: rgba(129, 230, 217, 0.2);
+        }
+
+        .item-count {
+            font-size: 0.65rem;
+            color: var(--color-text-muted);
+            letter-spacing: 0.1em;
+        }
+
+        /* Main content */
+        main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 7rem 2rem 4rem;
+        }
+
+        /* Section header */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-label {
+            font-size: 0.65rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--color-accent-cyan);
+            white-space: nowrap;
+        }
+
+        .section-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--color-border-default), transparent);
+        }
+
+        /* Input area */
+        .input-area {
+            background: var(--color-surface-secondary);
+            border: 1px solid var(--color-border-subtle);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2.5rem;
+            transition: all 0.3s ease;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .input-area:focus-within {
+            border-color: var(--color-accent-cyan);
+            box-shadow: 0 0 0 1px rgba(129, 230, 217, 0.1);
+        }
+
+        .input-area textarea {
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--color-text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            resize: vertical;
+            min-height: 100px;
+            outline: none;
+        }
+
+        .input-area textarea::placeholder {
+            color: var(--color-text-muted);
+        }
+
+        .input-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--color-border-subtle);
+        }
+
+        .input-hint {
+            font-size: 0.65rem;
+            color: var(--color-text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .input-hint kbd {
+            background: var(--color-surface-tertiary);
+            border: 1px solid var(--color-border-default);
+            border-radius: 3px;
+            padding: 0.1rem 0.4rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.6rem;
+        }
+
+        .add-btn {
+            background: rgba(129, 230, 217, 0.1);
+            border: 1px solid var(--color-accent-cyan);
+            color: var(--color-accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.5rem 1.25rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .add-btn:hover {
+            background: rgba(129, 230, 217, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .add-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Clipboard items */
+        .items-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .clip-item {
+            background: var(--color-surface-secondary);
+            border: 1px solid var(--color-border-subtle);
+            border-radius: 8px;
+            padding: 1.25rem 1.5rem;
+            position: relative;
+            transition: all 0.3s ease;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .clip-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--color-accent-cyan), var(--color-accent-purple));
+            border-radius: 8px 8px 0 0;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .clip-item:hover {
+            border-color: var(--color-border-default);
+            transform: translateY(-2px);
+        }
+
+        .clip-item:hover::before {
+            transform: scaleX(1);
+        }
+
+        .clip-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .clip-item-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .clip-index {
+            font-size: 0.6rem;
+            color: var(--color-accent-cyan);
+            font-weight: 500;
+            letter-spacing: 0.1em;
+        }
+
+        .clip-time {
+            font-size: 0.6rem;
+            color: var(--color-text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .clip-actions {
+            display: flex;
+            gap: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .clip-item:hover .clip-actions {
+            opacity: 1;
+        }
+
+        .clip-action-btn {
+            background: none;
+            border: 1px solid var(--color-border-subtle);
+            color: var(--color-text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.6rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .clip-action-btn:hover {
+            border-color: var(--color-accent-cyan);
+            color: var(--color-accent-cyan);
+        }
+
+        .clip-action-btn.delete:hover {
+            border-color: var(--color-accent-red);
+            color: var(--color-accent-red);
+        }
+
+        .clip-content {
+            font-size: 0.8rem;
+            line-height: 1.7;
+            color: var(--color-text-emphasis);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Edit mode */
+        .clip-item.editing {
+            border-color: var(--color-accent-cyan);
+        }
+
+        .clip-item.editing::before {
+            transform: scaleX(1);
+        }
+
+        .edit-textarea {
+            width: 100%;
+            background: var(--color-surface-primary);
+            border: 1px solid var(--color-border-default);
+            border-radius: 4px;
+            color: var(--color-text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.7;
+            padding: 0.75rem;
+            resize: vertical;
+            min-height: 60px;
+            outline: none;
+        }
+
+        .edit-textarea:focus {
+            border-color: var(--color-accent-cyan);
+        }
+
+        .edit-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        .edit-save-btn {
+            background: rgba(129, 230, 217, 0.1);
+            border: 1px solid var(--color-accent-cyan);
+            color: var(--color-accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            padding: 0.4rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .edit-save-btn:hover {
+            background: rgba(129, 230, 217, 0.2);
+        }
+
+        .edit-cancel-btn {
+            background: none;
+            border: 1px solid var(--color-border-default);
+            color: var(--color-text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            padding: 0.4rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .edit-cancel-btn:hover {
+            border-color: var(--color-text-secondary);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .empty-state .terminal-prompt {
+            font-size: 0.8rem;
+            color: var(--color-text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state .terminal-prompt span {
+            color: var(--color-accent-green);
+        }
+
+        .empty-state .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 14px;
+            background: var(--color-accent-cyan);
+            margin-left: 4px;
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+
+        .empty-state p {
+            font-size: 0.7rem;
+            color: var(--color-text-muted);
+            margin-top: 1rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--color-surface-secondary);
+            border: 1px solid var(--color-accent-cyan);
+            color: var(--color-accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 6px;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            letter-spacing: 0.05em;
+        }
+
+        .toast.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Search */
+        .search-container {
+            position: relative;
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+
+        .search-container.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--color-surface-secondary);
+            border: 1px solid var(--color-border-default);
+            color: var(--color-text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border-radius: 6px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--color-accent-cyan);
+        }
+
+        .search-input::placeholder {
+            color: var(--color-text-muted);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.85rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* Confirm dialog */
+        .confirm-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .confirm-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .confirm-dialog {
+            background: var(--color-surface-secondary);
+            border: 1px solid var(--color-border-emphasis);
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .confirm-dialog p {
+            font-size: 0.8rem;
+            color: var(--color-text-emphasis);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .confirm-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+
+        .confirm-yes {
+            background: rgba(245, 101, 101, 0.1);
+            border: 1px solid var(--color-accent-red);
+            color: var(--color-accent-red);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .confirm-yes:hover {
+            background: rgba(245, 101, 101, 0.2);
+        }
+
+        .confirm-no {
+            background: none;
+            border: 1px solid var(--color-border-default);
+            color: var(--color-text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .confirm-no:hover {
+            border-color: var(--color-text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 1rem 1.5rem;
+            }
+
+            main {
+                padding: 6rem 1.25rem 3rem;
+            }
+
+            .input-area {
+                padding: 1rem;
+            }
+
+            .clip-item {
+                padding: 1rem 1.25rem;
+            }
+
+            .clip-actions {
+                opacity: 1;
+            }
+
+            .input-hint {
+                display: none;
+            }
+
+            .nav-actions {
+                gap: 0.5rem;
+            }
+
+            .nav-btn {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+    <div class="grid-bg"></div>
+
+    <nav>
+        <div class="logo"><span>&gt;</span> whiteboard</div>
+        <div class="nav-actions">
+            <span class="item-count" id="itemCount">0 items</span>
+            <button class="nav-btn" id="searchToggle" title="Search">search</button>
+            <button class="nav-btn" id="clearAllBtn">clear all</button>
+        </div>
+    </nav>
+
+    <main>
+        <div class="section-header">
+            <span class="section-label">// Clipboard</span>
+            <div class="section-line"></div>
+        </div>
+
+        <div class="input-area">
+            <textarea id="clipInput" placeholder="Paste or type anything here..." rows="3"></textarea>
+            <div class="input-footer">
+                <span class="input-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to add</span>
+                <button class="add-btn" id="addBtn">+ Add</button>
+            </div>
+        </div>
+
+        <div class="search-container" id="searchContainer">
+            <span class="search-icon">$</span>
+            <input type="text" class="search-input" id="searchInput" placeholder="grep items...">
+        </div>
+
+        <div class="items-container" id="itemsContainer"></div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="confirm-overlay" id="confirmOverlay">
+        <div class="confirm-dialog">
+            <p id="confirmMessage">Are you sure?</p>
+            <div class="confirm-actions">
+                <button class="confirm-yes" id="confirmYes">Yes</button>
+                <button class="confirm-no" id="confirmNo">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'whiteboard_items';
+
+        // State
+        let items = loadItems();
+        let searchQuery = '';
+
+        // DOM
+        const clipInput = document.getElementById('clipInput');
+        const addBtn = document.getElementById('addBtn');
+        const itemsContainer = document.getElementById('itemsContainer');
+        const itemCount = document.getElementById('itemCount');
+        const toast = document.getElementById('toast');
+        const searchToggle = document.getElementById('searchToggle');
+        const searchContainer = document.getElementById('searchContainer');
+        const searchInput = document.getElementById('searchInput');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const confirmOverlay = document.getElementById('confirmOverlay');
+        const confirmMessage = document.getElementById('confirmMessage');
+        const confirmYes = document.getElementById('confirmYes');
+        const confirmNo = document.getElementById('confirmNo');
+
+        // Load items from localStorage
+        function loadItems() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                return data ? JSON.parse(data) : [];
+            } catch {
+                return [];
+            }
+        }
+
+        // Save items to localStorage
+        function saveItems() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), 2000);
+        }
+
+        // Format timestamp
+        function formatTime(ts) {
+            const d = new Date(ts);
+            const now = new Date();
+            const diff = now - d;
+
+            if (diff < 60000) return 'just now';
+            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        // Add item
+        function addItem() {
+            const text = clipInput.value.trim();
+            if (!text) return;
+
+            items.unshift({
+                id: Date.now(),
+                content: text,
+                created: Date.now()
+            });
+
+            saveItems();
+            clipInput.value = '';
+            clipInput.style.height = 'auto';
+            render();
+            showToast('Item added');
+        }
+
+        // Delete item
+        function deleteItem(id) {
+            items = items.filter(item => item.id !== id);
+            saveItems();
+            render();
+            showToast('Item removed');
+        }
+
+        // Copy item to clipboard
+        function copyItem(content) {
+            navigator.clipboard.writeText(content).then(() => {
+                showToast('Copied to clipboard');
+            }).catch(() => {
+                // Fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = content;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast('Copied to clipboard');
+            });
+        }
+
+        // Start editing
+        function startEdit(id) {
+            render(id);
+        }
+
+        // Save edit
+        function saveEdit(id, newContent) {
+            const item = items.find(i => i.id === id);
+            if (item && newContent.trim()) {
+                item.content = newContent.trim();
+                saveItems();
+                showToast('Item updated');
+            }
+            render();
+        }
+
+        // Confirm dialog
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                confirmMessage.textContent = message;
+                confirmOverlay.classList.add('visible');
+
+                const onYes = () => {
+                    confirmOverlay.classList.remove('visible');
+                    cleanup();
+                    resolve(true);
+                };
+
+                const onNo = () => {
+                    confirmOverlay.classList.remove('visible');
+                    cleanup();
+                    resolve(false);
+                };
+
+                const cleanup = () => {
+                    confirmYes.removeEventListener('click', onYes);
+                    confirmNo.removeEventListener('click', onNo);
+                };
+
+                confirmYes.addEventListener('click', onYes);
+                confirmNo.addEventListener('click', onNo);
+            });
+        }
+
+        // Render items
+        function render(editingId = null) {
+            const filtered = searchQuery
+                ? items.filter(item => item.content.toLowerCase().includes(searchQuery.toLowerCase()))
+                : items;
+
+            updateCount(filtered.length);
+
+            if (filtered.length === 0) {
+                const emptyMsg = searchQuery
+                    ? 'No items match your search.'
+                    : 'Your clipboard is empty. Paste something above to get started.';
+
+                itemsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="terminal-prompt">
+                            <span>$</span> whiteboard --list<span class="cursor"></span>
+                        </div>
+                        <p>${emptyMsg}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            itemsContainer.innerHTML = filtered.map((item, i) => {
+                const isEditing = item.id === editingId;
+                const index = String(filtered.length - i).padStart(2, '0');
+
+                if (isEditing) {
+                    return `
+                        <div class="clip-item editing" data-id="${item.id}">
+                            <div class="clip-item-header">
+                                <div class="clip-item-meta">
+                                    <span class="clip-index">#${index}</span>
+                                    <span class="clip-time">${formatTime(item.created)}</span>
+                                </div>
+                            </div>
+                            <textarea class="edit-textarea" id="edit-${item.id}">${escapeHtml(item.content)}</textarea>
+                            <div class="edit-actions">
+                                <button class="edit-cancel-btn" onclick="render()">Cancel</button>
+                                <button class="edit-save-btn" onclick="saveEdit(${item.id}, document.getElementById('edit-${item.id}').value)">Save</button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="clip-item" data-id="${item.id}">
+                        <div class="clip-item-header">
+                            <div class="clip-item-meta">
+                                <span class="clip-index">#${index}</span>
+                                <span class="clip-time">${formatTime(item.created)}</span>
+                            </div>
+                            <div class="clip-actions">
+                                <button class="clip-action-btn" onclick="copyItem(items.find(i=>i.id===${item.id}).content)">Copy</button>
+                                <button class="clip-action-btn" onclick="startEdit(${item.id})">Edit</button>
+                                <button class="clip-action-btn delete" onclick="deleteItem(${item.id})">Del</button>
+                            </div>
+                        </div>
+                        <div class="clip-content">${escapeHtml(item.content)}</div>
+                    </div>
+                `;
+            }).join('');
+
+            if (editingId) {
+                const editEl = document.getElementById(`edit-${editingId}`);
+                if (editEl) {
+                    editEl.focus();
+                    editEl.setSelectionRange(editEl.value.length, editEl.value.length);
+                }
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function updateCount(count) {
+            const total = items.length;
+            if (searchQuery && count !== total) {
+                itemCount.textContent = `${count}/${total} items`;
+            } else {
+                itemCount.textContent = `${total} item${total !== 1 ? 's' : ''}`;
+            }
+        }
+
+        // Event listeners
+        addBtn.addEventListener('click', addItem);
+
+        clipInput.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                addItem();
+            }
+        });
+
+        // Auto-resize textarea
+        clipInput.addEventListener('input', () => {
+            clipInput.style.height = 'auto';
+            clipInput.style.height = clipInput.scrollHeight + 'px';
+        });
+
+        // Search toggle
+        searchToggle.addEventListener('click', () => {
+            const isActive = searchContainer.classList.toggle('active');
+            if (isActive) {
+                searchInput.focus();
+            } else {
+                searchInput.value = '';
+                searchQuery = '';
+                render();
+            }
+        });
+
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            render();
+        });
+
+        // Keyboard shortcut: Escape to close search
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (searchContainer.classList.contains('active')) {
+                    searchContainer.classList.remove('active');
+                    searchInput.value = '';
+                    searchQuery = '';
+                    render();
+                }
+                if (confirmOverlay.classList.contains('visible')) {
+                    confirmOverlay.classList.remove('visible');
+                }
+            }
+            // Ctrl/Cmd + K to focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchContainer.classList.add('active');
+                searchInput.focus();
+            }
+        });
+
+        // Clear all
+        clearAllBtn.addEventListener('click', async () => {
+            if (items.length === 0) return;
+            const confirmed = await showConfirm('Clear all items from the whiteboard?');
+            if (confirmed) {
+                items = [];
+                saveItems();
+                render();
+                showToast('All items cleared');
+            }
+        });
+
+        // Handle paste anywhere on page (when not focused on input)
+        document.addEventListener('paste', (e) => {
+            if (document.activeElement === clipInput || document.activeElement === searchInput) return;
+            if (document.activeElement && document.activeElement.classList.contains('edit-textarea')) return;
+
+            const text = e.clipboardData.getData('text');
+            if (text.trim()) {
+                clipInput.value = text;
+                clipInput.focus();
+            }
+        });
+
+        // Initial render
+        render();
+    </script>
+
+</body>
+</html>
