@@ -31,6 +31,41 @@
             --color-accent-green: rgba(154, 230, 180, 0.9);
             --color-accent-blue: rgba(99, 179, 237, 0.9);
             --color-accent-red: rgba(245, 101, 101, 0.9);
+
+            --nav-bg: rgba(10, 10, 10, 0.85);
+            --scanline-color: rgba(0, 0, 0, 0.03);
+            --grid-line-color: rgba(255, 255, 255, 0.03);
+            --confirm-overlay: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Light mode */
+        html.light {
+            --color-surface-primary: #f5f5f4;
+            --color-surface-secondary: #ffffff;
+            --color-surface-tertiary: #e7e5e4;
+            --color-surface-hover: #d6d3d1;
+            --color-surface-elevated: #fafaf9;
+
+            --color-border-subtle: rgba(0, 0, 0, 0.06);
+            --color-border-default: rgba(0, 0, 0, 0.12);
+            --color-border-emphasis: rgba(0, 0, 0, 0.2);
+
+            --color-text-muted: rgba(0, 0, 0, 0.35);
+            --color-text-secondary: rgba(0, 0, 0, 0.5);
+            --color-text-default: rgba(0, 0, 0, 0.65);
+            --color-text-emphasis: rgba(0, 0, 0, 0.8);
+            --color-text-primary: rgba(0, 0, 0, 0.95);
+
+            --color-accent-cyan: rgba(14, 165, 143, 0.95);
+            --color-accent-purple: rgba(124, 58, 237, 0.9);
+            --color-accent-green: rgba(22, 163, 74, 0.9);
+            --color-accent-blue: rgba(37, 99, 235, 0.9);
+            --color-accent-red: rgba(220, 38, 38, 0.9);
+
+            --nav-bg: rgba(245, 245, 244, 0.85);
+            --scanline-color: rgba(0, 0, 0, 0.01);
+            --grid-line-color: rgba(0, 0, 0, 0.04);
+            --confirm-overlay: rgba(0, 0, 0, 0.4);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -42,6 +77,7 @@
             color: var(--color-text-default);
             min-height: 100vh;
             overflow-x: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
         }
 
         /* Scanlines overlay */
@@ -57,8 +93,8 @@
                 0deg,
                 transparent,
                 transparent 2px,
-                rgba(0, 0, 0, 0.03) 2px,
-                rgba(0, 0, 0, 0.03) 4px
+                var(--scanline-color) 2px,
+                var(--scanline-color) 4px
             );
         }
 
@@ -72,8 +108,8 @@
             z-index: -1;
             opacity: 0.4;
             background:
-                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+                linear-gradient(var(--grid-line-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line-color) 1px, transparent 1px);
             background-size: 60px 60px;
         }
 
@@ -97,11 +133,6 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 0.6; }
-            50% { opacity: 1; }
-        }
-
         /* Nav */
         nav {
             position: fixed;
@@ -115,8 +146,9 @@
             align-items: center;
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            background: rgba(10, 10, 10, 0.85);
+            background: var(--nav-bg);
             border-bottom: 1px solid var(--color-border-subtle);
+            transition: background 0.3s ease, border-color 0.3s ease;
         }
 
         .logo {
@@ -162,15 +194,44 @@
             background: rgba(129, 230, 217, 0.05);
         }
 
-        .nav-btn.primary {
-            background: rgba(129, 230, 217, 0.1);
+        html.light .nav-btn:hover {
+            background: rgba(14, 165, 143, 0.08);
+        }
+
+        /* Theme toggle */
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--color-border-default);
+            color: var(--color-text-secondary);
+            width: 34px;
+            height: 34px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-toggle:hover {
             border-color: var(--color-accent-cyan);
             color: var(--color-accent-cyan);
         }
 
-        .nav-btn.primary:hover {
-            background: rgba(129, 230, 217, 0.2);
+        .theme-toggle svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
+
+        .theme-toggle .icon-sun { display: none; }
+        .theme-toggle .icon-moon { display: block; }
+        html.light .theme-toggle .icon-sun { display: block; }
+        html.light .theme-toggle .icon-moon { display: none; }
 
         .item-count {
             font-size: 0.65rem;
@@ -224,21 +285,52 @@
             box-shadow: 0 0 0 1px rgba(129, 230, 217, 0.1);
         }
 
-        .input-area textarea {
+        html.light .input-area:focus-within {
+            box-shadow: 0 0 0 1px rgba(14, 165, 143, 0.15);
+        }
+
+        .clip-editor {
             width: 100%;
+            min-height: 100px;
             background: none;
             border: none;
             color: var(--color-text-primary);
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.85rem;
             line-height: 1.7;
-            resize: vertical;
-            min-height: 100px;
             outline: none;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
-        .input-area textarea::placeholder {
+        .clip-editor:empty::before {
+            content: 'Paste or type anything here...';
             color: var(--color-text-muted);
+            pointer-events: none;
+        }
+
+        /* Preserve pasted formatting but constrain it */
+        .clip-editor img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+        }
+
+        .clip-editor a {
+            color: var(--color-accent-cyan);
+        }
+
+        .clip-editor table {
+            border-collapse: collapse;
+            margin: 0.5rem 0;
+            width: 100%;
+        }
+
+        .clip-editor td, .clip-editor th {
+            border: 1px solid var(--color-border-default);
+            padding: 0.3rem 0.5rem;
+            font-size: 0.8rem;
         }
 
         .input-footer {
@@ -248,6 +340,12 @@
             margin-top: 1rem;
             padding-top: 1rem;
             border-top: 1px solid var(--color-border-subtle);
+        }
+
+        .input-hints {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
         .input-hint {
@@ -265,6 +363,22 @@
             font-size: 0.6rem;
         }
 
+        .format-badge {
+            font-size: 0.55rem;
+            color: var(--color-accent-purple);
+            border: 1px solid var(--color-accent-purple);
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .format-badge.visible {
+            opacity: 1;
+        }
+
         .add-btn {
             background: rgba(129, 230, 217, 0.1);
             border: 1px solid var(--color-accent-cyan);
@@ -279,9 +393,17 @@
             letter-spacing: 0.08em;
         }
 
+        html.light .add-btn {
+            background: rgba(14, 165, 143, 0.1);
+        }
+
         .add-btn:hover {
             background: rgba(129, 230, 217, 0.2);
             transform: translateY(-1px);
+        }
+
+        html.light .add-btn:hover {
+            background: rgba(14, 165, 143, 0.2);
         }
 
         .add-btn:active {
@@ -354,6 +476,17 @@
             letter-spacing: 0.05em;
         }
 
+        .clip-type-badge {
+            font-size: 0.5rem;
+            color: var(--color-accent-purple);
+            border: 1px solid var(--color-accent-purple);
+            padding: 0.1rem 0.35rem;
+            border-radius: 3px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
         .clip-actions {
             display: flex;
             gap: 0.5rem;
@@ -393,8 +526,69 @@
             font-size: 0.8rem;
             line-height: 1.7;
             color: var(--color-text-emphasis);
-            white-space: pre-wrap;
             word-break: break-word;
+        }
+
+        .clip-content.plain {
+            white-space: pre-wrap;
+        }
+
+        .clip-content.rich img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+        }
+
+        .clip-content.rich a {
+            color: var(--color-accent-cyan);
+        }
+
+        .clip-content.rich table {
+            border-collapse: collapse;
+            margin: 0.5rem 0;
+            width: 100%;
+        }
+
+        .clip-content.rich td, .clip-content.rich th {
+            border: 1px solid var(--color-border-default);
+            padding: 0.3rem 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .clip-content.rich ul, .clip-content.rich ol {
+            padding-left: 1.5rem;
+            margin: 0.25rem 0;
+        }
+
+        .clip-content.rich h1, .clip-content.rich h2, .clip-content.rich h3,
+        .clip-content.rich h4, .clip-content.rich h5, .clip-content.rich h6 {
+            margin: 0.5rem 0 0.25rem;
+            color: var(--color-text-primary);
+        }
+
+        .clip-content.rich blockquote {
+            border-left: 3px solid var(--color-accent-cyan);
+            padding-left: 0.75rem;
+            margin: 0.5rem 0;
+            color: var(--color-text-secondary);
+        }
+
+        .clip-content.rich pre, .clip-content.rich code {
+            background: var(--color-surface-tertiary);
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .clip-content.rich pre {
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            overflow-x: auto;
+        }
+
+        .clip-content.rich code {
+            padding: 0.1rem 0.3rem;
+            font-size: 0.75rem;
         }
 
         /* Edit mode */
@@ -406,7 +600,7 @@
             transform: scaleX(1);
         }
 
-        .edit-textarea {
+        .edit-area {
             width: 100%;
             background: var(--color-surface-primary);
             border: 1px solid var(--color-border-default);
@@ -416,13 +610,19 @@
             font-size: 0.8rem;
             line-height: 1.7;
             padding: 0.75rem;
-            resize: vertical;
             min-height: 60px;
             outline: none;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
-        .edit-textarea:focus {
+        .edit-area:focus {
             border-color: var(--color-accent-cyan);
+        }
+
+        /* For plain text editing, use textarea */
+        textarea.edit-area {
+            resize: vertical;
         }
 
         .edit-actions {
@@ -576,7 +776,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: var(--confirm-overlay);
             backdrop-filter: blur(4px);
             z-index: 500;
             display: flex;
@@ -699,6 +899,10 @@
             <span class="item-count" id="itemCount">0 items</span>
             <button class="nav-btn" id="searchToggle" title="Search">search</button>
             <button class="nav-btn" id="clearAllBtn">clear all</button>
+            <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode">
+                <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            </button>
         </div>
     </nav>
 
@@ -709,9 +913,12 @@
         </div>
 
         <div class="input-area">
-            <textarea id="clipInput" placeholder="Paste or type anything here..." rows="3"></textarea>
+            <div class="clip-editor" id="clipInput" contenteditable="true"></div>
             <div class="input-footer">
-                <span class="input-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to add</span>
+                <div class="input-hints">
+                    <span class="input-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to add</span>
+                    <span class="format-badge" id="formatBadge">rich text</span>
+                </div>
                 <button class="add-btn" id="addBtn">+ Add</button>
             </div>
         </div>
@@ -738,10 +945,12 @@
 
     <script>
         const STORAGE_KEY = 'whiteboard_items';
+        const THEME_KEY = 'whiteboard_theme';
 
         // State
         let items = loadItems();
         let searchQuery = '';
+        let hasRichContent = false;
 
         // DOM
         const clipInput = document.getElementById('clipInput');
@@ -757,6 +966,24 @@
         const confirmMessage = document.getElementById('confirmMessage');
         const confirmYes = document.getElementById('confirmYes');
         const confirmNo = document.getElementById('confirmNo');
+        const themeToggle = document.getElementById('themeToggle');
+        const formatBadge = document.getElementById('formatBadge');
+
+        // Theme
+        function initTheme() {
+            const saved = localStorage.getItem(THEME_KEY);
+            if (saved === 'light') {
+                document.documentElement.classList.add('light');
+            }
+        }
+
+        function toggleTheme() {
+            const isLight = document.documentElement.classList.toggle('light');
+            localStorage.setItem(THEME_KEY, isLight ? 'light' : 'dark');
+        }
+
+        initTheme();
+        themeToggle.addEventListener('click', toggleTheme);
 
         // Load items from localStorage
         function loadItems() {
@@ -793,20 +1020,64 @@
             return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         }
 
+        // Check if HTML has actual formatting beyond plain text
+        function isRichHtml(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            // Check if it contains any formatting elements
+            const richTags = div.querySelectorAll('b, strong, i, em, u, a, img, table, ul, ol, li, h1, h2, h3, h4, h5, h6, blockquote, pre, code, span[style], p[style], div[style], font');
+            if (richTags.length > 0) return true;
+            // Check for styled elements
+            const allElements = div.querySelectorAll('*');
+            for (const el of allElements) {
+                if (el.style && el.style.cssText) return true;
+            }
+            return false;
+        }
+
+        // Sanitize HTML to prevent XSS but keep formatting
+        function sanitizeHtml(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            // Remove script tags and event handlers
+            div.querySelectorAll('script, style, iframe, object, embed, form, input').forEach(el => el.remove());
+            const allElements = div.querySelectorAll('*');
+            for (const el of allElements) {
+                const attrs = [...el.attributes];
+                for (const attr of attrs) {
+                    if (attr.name.startsWith('on') || attr.name === 'srcdoc') {
+                        el.removeAttribute(attr.name);
+                    }
+                    if (attr.name === 'href' || attr.name === 'src') {
+                        const val = attr.value.trim().toLowerCase();
+                        if (val.startsWith('javascript:') || val.startsWith('data:text/html')) {
+                            el.removeAttribute(attr.name);
+                        }
+                    }
+                }
+            }
+            return div.innerHTML;
+        }
+
         // Add item
         function addItem() {
-            const text = clipInput.value.trim();
+            const html = clipInput.innerHTML.trim();
+            const text = clipInput.innerText.trim();
             if (!text) return;
 
-            items.unshift({
+            const isRich = isRichHtml(html);
+            const item = {
                 id: Date.now(),
-                content: text,
+                content: isRich ? sanitizeHtml(html) : text,
+                isRich: isRich,
                 created: Date.now()
-            });
+            };
 
+            items.unshift(item);
             saveItems();
-            clipInput.value = '';
-            clipInput.style.height = 'auto';
+            clipInput.innerHTML = '';
+            hasRichContent = false;
+            formatBadge.classList.remove('visible');
             render();
             showToast('Item added');
         }
@@ -820,19 +1091,46 @@
         }
 
         // Copy item to clipboard
-        function copyItem(content) {
-            navigator.clipboard.writeText(content).then(() => {
-                showToast('Copied to clipboard');
-            }).catch(() => {
-                // Fallback
-                const textarea = document.createElement('textarea');
-                textarea.value = content;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-                showToast('Copied to clipboard');
-            });
+        function copyItem(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            if (item.isRich) {
+                // Copy as rich text using ClipboardItem API
+                try {
+                    const blob = new Blob([item.content], { type: 'text/html' });
+                    const textBlob = new Blob([stripHtml(item.content)], { type: 'text/plain' });
+                    navigator.clipboard.write([
+                        new ClipboardItem({
+                            'text/html': blob,
+                            'text/plain': textBlob
+                        })
+                    ]).then(() => showToast('Copied with formatting'));
+                } catch {
+                    // Fallback to plain text
+                    navigator.clipboard.writeText(stripHtml(item.content)).then(() => {
+                        showToast('Copied as plain text');
+                    });
+                }
+            } else {
+                navigator.clipboard.writeText(item.content).then(() => {
+                    showToast('Copied to clipboard');
+                }).catch(() => {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = item.content;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    showToast('Copied to clipboard');
+                });
+            }
+        }
+
+        function stripHtml(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            return div.textContent || div.innerText || '';
         }
 
         // Start editing
@@ -841,12 +1139,28 @@
         }
 
         // Save edit
-        function saveEdit(id, newContent) {
+        function saveEdit(id) {
             const item = items.find(i => i.id === id);
-            if (item && newContent.trim()) {
-                item.content = newContent.trim();
-                saveItems();
-                showToast('Item updated');
+            if (!item) return;
+
+            if (item.isRich) {
+                const editEl = document.getElementById(`edit-${id}`);
+                if (editEl) {
+                    const html = editEl.innerHTML.trim();
+                    const text = editEl.innerText.trim();
+                    if (text) {
+                        item.content = sanitizeHtml(html);
+                        saveItems();
+                        showToast('Item updated');
+                    }
+                }
+            } else {
+                const editEl = document.getElementById(`edit-${id}`);
+                if (editEl && editEl.value.trim()) {
+                    item.content = editEl.value.trim();
+                    saveItems();
+                    showToast('Item updated');
+                }
             }
             render();
         }
@@ -879,10 +1193,19 @@
             });
         }
 
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         // Render items
         function render(editingId = null) {
             const filtered = searchQuery
-                ? items.filter(item => item.content.toLowerCase().includes(searchQuery.toLowerCase()))
+                ? items.filter(item => {
+                    const text = item.isRich ? stripHtml(item.content) : item.content;
+                    return text.toLowerCase().includes(searchQuery.toLowerCase());
+                })
                 : items;
 
             updateCount(filtered.length);
@@ -908,6 +1231,24 @@
                 const index = String(filtered.length - i).padStart(2, '0');
 
                 if (isEditing) {
+                    if (item.isRich) {
+                        return `
+                            <div class="clip-item editing" data-id="${item.id}">
+                                <div class="clip-item-header">
+                                    <div class="clip-item-meta">
+                                        <span class="clip-index">#${index}</span>
+                                        <span class="clip-time">${formatTime(item.created)}</span>
+                                        <span class="clip-type-badge">rich</span>
+                                    </div>
+                                </div>
+                                <div class="edit-area" id="edit-${item.id}" contenteditable="true">${item.content}</div>
+                                <div class="edit-actions">
+                                    <button class="edit-cancel-btn" onclick="render()">Cancel</button>
+                                    <button class="edit-save-btn" onclick="saveEdit(${item.id})">Save</button>
+                                </div>
+                            </div>
+                        `;
+                    }
                     return `
                         <div class="clip-item editing" data-id="${item.id}">
                             <div class="clip-item-header">
@@ -916,14 +1257,18 @@
                                     <span class="clip-time">${formatTime(item.created)}</span>
                                 </div>
                             </div>
-                            <textarea class="edit-textarea" id="edit-${item.id}">${escapeHtml(item.content)}</textarea>
+                            <textarea class="edit-area" id="edit-${item.id}">${escapeHtml(item.content)}</textarea>
                             <div class="edit-actions">
                                 <button class="edit-cancel-btn" onclick="render()">Cancel</button>
-                                <button class="edit-save-btn" onclick="saveEdit(${item.id}, document.getElementById('edit-${item.id}').value)">Save</button>
+                                <button class="edit-save-btn" onclick="saveEdit(${item.id})">Save</button>
                             </div>
                         </div>
                     `;
                 }
+
+                const typeBadge = item.isRich ? '<span class="clip-type-badge">rich</span>' : '';
+                const contentClass = item.isRich ? 'clip-content rich' : 'clip-content plain';
+                const contentHtml = item.isRich ? item.content : escapeHtml(item.content);
 
                 return `
                     <div class="clip-item" data-id="${item.id}">
@@ -931,14 +1276,15 @@
                             <div class="clip-item-meta">
                                 <span class="clip-index">#${index}</span>
                                 <span class="clip-time">${formatTime(item.created)}</span>
+                                ${typeBadge}
                             </div>
                             <div class="clip-actions">
-                                <button class="clip-action-btn" onclick="copyItem(items.find(i=>i.id===${item.id}).content)">Copy</button>
+                                <button class="clip-action-btn" onclick="copyItem(${item.id})">Copy</button>
                                 <button class="clip-action-btn" onclick="startEdit(${item.id})">Edit</button>
                                 <button class="clip-action-btn delete" onclick="deleteItem(${item.id})">Del</button>
                             </div>
                         </div>
-                        <div class="clip-content">${escapeHtml(item.content)}</div>
+                        <div class="${contentClass}">${contentHtml}</div>
                     </div>
                 `;
             }).join('');
@@ -947,15 +1293,19 @@
                 const editEl = document.getElementById(`edit-${editingId}`);
                 if (editEl) {
                     editEl.focus();
-                    editEl.setSelectionRange(editEl.value.length, editEl.value.length);
+                    if (editEl.tagName === 'TEXTAREA') {
+                        editEl.setSelectionRange(editEl.value.length, editEl.value.length);
+                    } else {
+                        // contenteditable: move cursor to end
+                        const range = document.createRange();
+                        range.selectNodeContents(editEl);
+                        range.collapse(false);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
                 }
             }
-        }
-
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
         }
 
         function updateCount(count) {
@@ -977,10 +1327,24 @@
             }
         });
 
-        // Auto-resize textarea
+        // Detect rich paste in the editor
+        clipInput.addEventListener('paste', () => {
+            // Check after the paste is applied
+            setTimeout(() => {
+                const html = clipInput.innerHTML;
+                hasRichContent = isRichHtml(html);
+                formatBadge.classList.toggle('visible', hasRichContent);
+            }, 10);
+        });
+
+        // Track input changes
         clipInput.addEventListener('input', () => {
-            clipInput.style.height = 'auto';
-            clipInput.style.height = clipInput.scrollHeight + 'px';
+            if (!hasRichContent) return;
+            // If all content is removed, reset
+            if (!clipInput.innerText.trim()) {
+                hasRichContent = false;
+                formatBadge.classList.remove('visible');
+            }
         });
 
         // Search toggle
@@ -1000,7 +1364,7 @@
             render();
         });
 
-        // Keyboard shortcut: Escape to close search
+        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 if (searchContainer.classList.contains('active')) {
@@ -1013,7 +1377,6 @@
                     confirmOverlay.classList.remove('visible');
                 }
             }
-            // Ctrl/Cmd + K to focus search
             if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                 e.preventDefault();
                 searchContainer.classList.add('active');
@@ -1033,16 +1396,31 @@
             }
         });
 
-        // Handle paste anywhere on page (when not focused on input)
+        // Handle paste anywhere on page (when not focused on an input)
         document.addEventListener('paste', (e) => {
             if (document.activeElement === clipInput || document.activeElement === searchInput) return;
-            if (document.activeElement && document.activeElement.classList.contains('edit-textarea')) return;
+            if (document.activeElement && (document.activeElement.classList.contains('edit-area') || document.activeElement.tagName === 'TEXTAREA')) return;
 
-            const text = e.clipboardData.getData('text');
-            if (text.trim()) {
-                clipInput.value = text;
-                clipInput.focus();
+            const html = e.clipboardData.getData('text/html');
+            const text = e.clipboardData.getData('text/plain');
+
+            if (html && isRichHtml(html)) {
+                clipInput.innerHTML = sanitizeHtml(html);
+                hasRichContent = true;
+                formatBadge.classList.add('visible');
+            } else if (text.trim()) {
+                clipInput.innerText = text;
+                hasRichContent = false;
+                formatBadge.classList.remove('visible');
             }
+            clipInput.focus();
+            // Move cursor to end
+            const range = document.createRange();
+            range.selectNodeContents(clipInput);
+            range.collapse(false);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
         });
 
         // Initial render
