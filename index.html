@@ -897,7 +897,6 @@
         <div class="logo"><span>&gt;</span> whiteboard</div>
         <div class="nav-actions">
             <span class="item-count" id="itemCount">0 items</span>
-            <button class="nav-btn" id="refreshBtn" title="Refresh from server">refresh</button>
             <button class="nav-btn" id="searchToggle" title="Search">search</button>
             <button class="nav-btn" id="clearAllBtn">clear all</button>
             <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode">
@@ -945,15 +944,13 @@
     </div>
 
     <script>
-        // UPDATE THIS after deploying the worker
-        const API_URL = '';
+        const STORAGE_KEY = 'whiteboard_items';
         const THEME_KEY = 'whiteboard_theme';
 
         // State
-        let items = [];
+        let items = loadItems();
         let searchQuery = '';
         let hasRichContent = false;
-        let saving = false;
 
         // DOM
         const clipInput = document.getElementById('clipInput');
@@ -988,47 +985,19 @@
         initTheme();
         themeToggle.addEventListener('click', toggleTheme);
 
-        // API functions
-        async function fetchItems() {
-            if (!API_URL) {
-                // Fallback to localStorage if no API configured
-                try {
-                    const data = localStorage.getItem('whiteboard_items');
-                    return data ? JSON.parse(data) : [];
-                } catch { return []; }
-            }
+        // Load items from localStorage
+        function loadItems() {
             try {
-                const res = await fetch(`${API_URL}/items`);
-                if (!res.ok) throw new Error('Fetch failed');
-                return await res.json();
-            } catch (err) {
-                console.error('Failed to load items:', err);
-                showToast('Failed to load items');
+                const data = localStorage.getItem(STORAGE_KEY);
+                return data ? JSON.parse(data) : [];
+            } catch {
                 return [];
             }
         }
 
-        async function saveItems() {
-            if (saving) return;
-            saving = true;
-            if (!API_URL) {
-                localStorage.setItem('whiteboard_items', JSON.stringify(items));
-                saving = false;
-                return;
-            }
-            try {
-                const res = await fetch(`${API_URL}/items`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(items),
-                });
-                if (!res.ok) throw new Error('Save failed');
-            } catch (err) {
-                console.error('Failed to save items:', err);
-                showToast('Failed to save');
-            } finally {
-                saving = false;
-            }
+        // Save items to localStorage
+        function saveItems() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
         }
 
         // Show toast notification
@@ -1427,16 +1396,6 @@
             }
         });
 
-        // Refresh
-        const refreshBtn = document.getElementById('refreshBtn');
-        refreshBtn.addEventListener('click', async () => {
-            refreshBtn.textContent = '...';
-            items = await fetchItems();
-            render();
-            refreshBtn.textContent = 'refresh';
-            showToast('Synced');
-        });
-
         // Handle paste anywhere on page (when not focused on an input)
         document.addEventListener('paste', (e) => {
             if (document.activeElement === clipInput || document.activeElement === searchInput) return;
@@ -1464,13 +1423,8 @@
             sel.addRange(range);
         });
 
-        // Initial load from API
-        async function init() {
-            items = await fetchItems();
-            render();
-        }
-
-        init();
+        // Initial render
+        render();
     </script>
 
 </body>
