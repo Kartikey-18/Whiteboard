@@ -309,7 +309,6 @@
             pointer-events: none;
         }
 
-        /* Preserve pasted formatting but constrain it */
         .clip-editor img {
             max-width: 100%;
             height: auto;
@@ -450,6 +449,40 @@
             transform: scaleX(1);
         }
 
+        /* Drag and drop styles */
+        .clip-item.dragging {
+            opacity: 0.4;
+            transform: scale(0.98);
+        }
+
+        .clip-item.drag-over {
+            border-color: var(--color-accent-cyan);
+            transform: translateY(0);
+        }
+
+        .clip-item.drag-over::before {
+            transform: scaleX(1);
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: var(--color-text-muted);
+            font-size: 0.7rem;
+            padding: 0.2rem;
+            margin-right: 0.25rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            user-select: none;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .clip-item:hover .drag-handle {
+            opacity: 1;
+        }
+
         .clip-item-header {
             display: flex;
             justify-content: space-between;
@@ -533,6 +566,18 @@
             white-space: pre-wrap;
         }
 
+        /* Auto-linked URLs */
+        .clip-content.plain a {
+            color: var(--color-accent-cyan);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(129, 230, 217, 0.3);
+            transition: border-color 0.2s ease;
+        }
+
+        .clip-content.plain a:hover {
+            border-bottom-color: var(--color-accent-cyan);
+        }
+
         .clip-content.rich img {
             max-width: 100%;
             height: auto;
@@ -591,6 +636,14 @@
             font-size: 0.75rem;
         }
 
+        /* Image items */
+        .clip-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin: 0.25rem 0;
+        }
+
         /* Edit mode */
         .clip-item.editing {
             border-color: var(--color-accent-cyan);
@@ -620,7 +673,6 @@
             border-color: var(--color-accent-cyan);
         }
 
-        /* For plain text editing, use textarea */
         textarea.edit-area {
             resize: vertical;
         }
@@ -873,6 +925,10 @@
                 opacity: 1;
             }
 
+            .drag-handle {
+                opacity: 1;
+            }
+
             .input-hint {
                 display: none;
             }
@@ -966,6 +1022,7 @@
         let items = [];
         let searchQuery = '';
         let hasRichContent = false;
+        let dragSrcId = null;
 
         // DOM
         const clipInput = document.getElementById('clipInput');
@@ -1015,6 +1072,7 @@
                 await itemsRef.doc(item.id).set({
                     content: item.content,
                     isRich: item.isRich || false,
+                    isImage: item.isImage || false,
                     created: item.created
                 });
             } catch (err) {
@@ -1057,10 +1115,8 @@
         function isRichHtml(html) {
             const div = document.createElement('div');
             div.innerHTML = html;
-            // Check if it contains any formatting elements
             const richTags = div.querySelectorAll('b, strong, i, em, u, a, img, table, ul, ol, li, h1, h2, h3, h4, h5, h6, blockquote, pre, code, span[style], p[style], div[style], font');
             if (richTags.length > 0) return true;
-            // Check for styled elements
             const allElements = div.querySelectorAll('*');
             for (const el of allElements) {
                 if (el.style && el.style.cssText) return true;
@@ -1072,7 +1128,6 @@
         function sanitizeHtml(html) {
             const div = document.createElement('div');
             div.innerHTML = html;
-            // Remove script tags and event handlers
             div.querySelectorAll('script, style, iframe, object, embed, form, input').forEach(el => el.remove());
             const allElements = div.querySelectorAll('*');
             for (const el of allElements) {
@@ -1092,17 +1147,35 @@
             return div.innerHTML;
         }
 
+        // Linkify URLs in plain text
+        function linkifyText(text) {
+            const escaped = escapeHtml(text);
+            const urlRegex = /(https?:\/\/[^\s<]+)/g;
+            return escaped.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+        }
+
+        // Convert image file to base64 data URL
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         // Add item
         function addItem() {
             const html = clipInput.innerHTML.trim();
             const text = clipInput.innerText.trim();
-            if (!text) return;
+            if (!text && !html) return;
 
             const isRich = isRichHtml(html);
             const item = {
                 id: String(Date.now()),
                 content: isRich ? sanitizeHtml(html) : text,
                 isRich: isRich,
+                isImage: false,
                 created: Date.now()
             };
 
@@ -1111,6 +1184,19 @@
             hasRichContent = false;
             formatBadge.classList.remove('visible');
             showToast('Item added');
+        }
+
+        // Add image item
+        async function addImageItem(dataUrl) {
+            const item = {
+                id: String(Date.now()),
+                content: dataUrl,
+                isRich: false,
+                isImage: true,
+                created: Date.now()
+            };
+            saveItem(item);
+            showToast('Image added');
         }
 
         // Delete item
@@ -1124,8 +1210,15 @@
             const item = items.find(i => i.id === id);
             if (!item) return;
 
+            if (item.isImage) {
+                // For images, copy the data URL
+                navigator.clipboard.writeText(item.content).then(() => {
+                    showToast('Image URL copied');
+                });
+                return;
+            }
+
             if (item.isRich) {
-                // Copy as rich text using ClipboardItem API
                 try {
                     const blob = new Blob([item.content], { type: 'text/html' });
                     const textBlob = new Blob([stripHtml(item.content)], { type: 'text/plain' });
@@ -1136,7 +1229,6 @@
                         })
                     ]).then(() => showToast('Copied with formatting'));
                 } catch {
-                    // Fallback to plain text
                     navigator.clipboard.writeText(stripHtml(item.content)).then(() => {
                         showToast('Copied as plain text');
                     });
@@ -1173,7 +1265,7 @@
             if (!item) return;
 
             if (item.isRich) {
-                const editEl = document.getElementById(`edit-${id}`);
+                const editEl = document.getElementById('edit-' + id);
                 if (editEl) {
                     const html = editEl.innerHTML.trim();
                     const text = editEl.innerText.trim();
@@ -1184,7 +1276,7 @@
                     }
                 }
             } else {
-                const editEl = document.getElementById(`edit-${id}`);
+                const editEl = document.getElementById('edit-' + id);
                 if (editEl && editEl.value.trim()) {
                     item.content = editEl.value.trim();
                     saveItem(item);
@@ -1192,6 +1284,65 @@
                 }
             }
             render();
+        }
+
+        // Drag and drop reorder
+        function handleDragStart(e, id) {
+            dragSrcId = id;
+            e.target.closest('.clip-item').classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', id);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const item = e.target.closest('.clip-item');
+            if (item && item.dataset.id !== dragSrcId) {
+                // Remove drag-over from all
+                document.querySelectorAll('.clip-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+                item.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            const item = e.target.closest('.clip-item');
+            if (item) item.classList.remove('drag-over');
+        }
+
+        async function handleDrop(e, targetId) {
+            e.preventDefault();
+            document.querySelectorAll('.clip-item.dragging, .clip-item.drag-over').forEach(el => {
+                el.classList.remove('dragging', 'drag-over');
+            });
+
+            if (!dragSrcId || dragSrcId === targetId) return;
+
+            const srcIdx = items.findIndex(i => i.id === dragSrcId);
+            const tgtIdx = items.findIndex(i => i.id === targetId);
+            if (srcIdx === -1 || tgtIdx === -1) return;
+
+            // Swap the created timestamps to reorder
+            const srcCreated = items[srcIdx].created;
+            const tgtCreated = items[tgtIdx].created;
+
+            items[srcIdx].created = tgtCreated;
+            items[tgtIdx].created = srcCreated;
+
+            // Save both to Firestore
+            await Promise.all([
+                saveItem(items[srcIdx]),
+                saveItem(items[tgtIdx])
+            ]);
+
+            dragSrcId = null;
+        }
+
+        function handleDragEnd() {
+            document.querySelectorAll('.clip-item.dragging, .clip-item.drag-over').forEach(el => {
+                el.classList.remove('dragging', 'drag-over');
+            });
+            dragSrcId = null;
         }
 
         // Confirm dialog
@@ -1232,6 +1383,7 @@
         function render(editingId = null) {
             const filtered = searchQuery
                 ? items.filter(item => {
+                    if (item.isImage) return false;
                     const text = item.isRich ? stripHtml(item.content) : item.content;
                     return text.toLowerCase().includes(searchQuery.toLowerCase());
                 })
@@ -1260,6 +1412,10 @@
                 const index = String(filtered.length - i).padStart(2, '0');
 
                 if (isEditing) {
+                    if (item.isImage) {
+                        // Images are not editable
+                        return '';
+                    }
                     if (item.isRich) {
                         return `
                             <div class="clip-item editing" data-id="${item.id}">
@@ -1295,21 +1451,45 @@
                     `;
                 }
 
-                const typeBadge = item.isRich ? '<span class="clip-type-badge">rich</span>' : '';
-                const contentClass = item.isRich ? 'clip-content rich' : 'clip-content plain';
-                const contentHtml = item.isRich ? item.content : escapeHtml(item.content);
+                // Type badge
+                let typeBadge = '';
+                if (item.isImage) typeBadge = '<span class="clip-type-badge">img</span>';
+                else if (item.isRich) typeBadge = '<span class="clip-type-badge">rich</span>';
+
+                // Content rendering
+                let contentHtml;
+                let contentClass;
+                if (item.isImage) {
+                    contentClass = 'clip-content';
+                    contentHtml = '<img src="' + item.content + '" alt="Pasted image">';
+                } else if (item.isRich) {
+                    contentClass = 'clip-content rich';
+                    contentHtml = item.content;
+                } else {
+                    contentClass = 'clip-content plain';
+                    contentHtml = linkifyText(item.content);
+                }
+
+                // Edit button (not for images)
+                const editBtn = item.isImage ? '' : `<button class="clip-action-btn" onclick="startEdit('${item.id}')">Edit</button>`;
 
                 return `
-                    <div class="clip-item" data-id="${item.id}">
+                    <div class="clip-item" data-id="${item.id}" draggable="true"
+                         ondragstart="handleDragStart(event, '${item.id}')"
+                         ondragover="handleDragOver(event)"
+                         ondragleave="handleDragLeave(event)"
+                         ondrop="handleDrop(event, '${item.id}')"
+                         ondragend="handleDragEnd()">
                         <div class="clip-item-header">
                             <div class="clip-item-meta">
+                                <span class="drag-handle" title="Drag to reorder">::</span>
                                 <span class="clip-index">#${index}</span>
                                 <span class="clip-time">${formatTime(item.created)}</span>
                                 ${typeBadge}
                             </div>
                             <div class="clip-actions">
                                 <button class="clip-action-btn" onclick="copyItem('${item.id}')">Copy</button>
-                                <button class="clip-action-btn" onclick="startEdit('${item.id}')">Edit</button>
+                                ${editBtn}
                                 <button class="clip-action-btn delete" onclick="deleteItem('${item.id}')">Del</button>
                             </div>
                         </div>
@@ -1319,13 +1499,12 @@
             }).join('');
 
             if (editingId) {
-                const editEl = document.getElementById(`edit-${editingId}`);
+                const editEl = document.getElementById('edit-' + editingId);
                 if (editEl) {
                     editEl.focus();
                     if (editEl.tagName === 'TEXTAREA') {
                         editEl.setSelectionRange(editEl.value.length, editEl.value.length);
                     } else {
-                        // contenteditable: move cursor to end
                         const range = document.createRange();
                         range.selectNodeContents(editEl);
                         range.collapse(false);
@@ -1340,9 +1519,9 @@
         function updateCount(count) {
             const total = items.length;
             if (searchQuery && count !== total) {
-                itemCount.textContent = `${count}/${total} items`;
+                itemCount.textContent = count + '/' + total + ' items';
             } else {
-                itemCount.textContent = `${total} item${total !== 1 ? 's' : ''}`;
+                itemCount.textContent = total + ' item' + (total !== 1 ? 's' : '');
             }
         }
 
@@ -1356,9 +1535,23 @@
             }
         });
 
-        // Detect rich paste in the editor
-        clipInput.addEventListener('paste', () => {
-            // Check after the paste is applied
+        // Detect rich paste and image paste in the editor
+        clipInput.addEventListener('paste', async (e) => {
+            // Check for image files in clipboard
+            const clipboardItems = e.clipboardData.items;
+            for (let i = 0; i < clipboardItems.length; i++) {
+                if (clipboardItems[i].type.startsWith('image/')) {
+                    e.preventDefault();
+                    const file = clipboardItems[i].getAsFile();
+                    if (file) {
+                        const dataUrl = await fileToBase64(file);
+                        addImageItem(dataUrl);
+                    }
+                    return;
+                }
+            }
+
+            // Otherwise check for rich text after paste applies
             setTimeout(() => {
                 const html = clipInput.innerHTML;
                 hasRichContent = isRichHtml(html);
@@ -1369,7 +1562,6 @@
         // Track input changes
         clipInput.addEventListener('input', () => {
             if (!hasRichContent) return;
-            // If all content is removed, reset
             if (!clipInput.innerText.trim()) {
                 hasRichContent = false;
                 formatBadge.classList.remove('visible');
@@ -1425,9 +1617,23 @@
         });
 
         // Handle paste anywhere on page (when not focused on an input)
-        document.addEventListener('paste', (e) => {
+        document.addEventListener('paste', async (e) => {
             if (document.activeElement === clipInput || document.activeElement === searchInput) return;
             if (document.activeElement && (document.activeElement.classList.contains('edit-area') || document.activeElement.tagName === 'TEXTAREA')) return;
+
+            // Check for image files
+            const clipboardItems = e.clipboardData.items;
+            for (let i = 0; i < clipboardItems.length; i++) {
+                if (clipboardItems[i].type.startsWith('image/')) {
+                    e.preventDefault();
+                    const file = clipboardItems[i].getAsFile();
+                    if (file) {
+                        const dataUrl = await fileToBase64(file);
+                        addImageItem(dataUrl);
+                    }
+                    return;
+                }
+            }
 
             const html = e.clipboardData.getData('text/html');
             const text = e.clipboardData.getData('text/plain');
@@ -1442,7 +1648,6 @@
                 formatBadge.classList.remove('visible');
             }
             clipInput.focus();
-            // Move cursor to end
             const range = document.createRange();
             range.selectNodeContents(clipInput);
             range.collapse(false);
