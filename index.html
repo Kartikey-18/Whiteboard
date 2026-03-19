@@ -636,14 +636,6 @@
             font-size: 0.75rem;
         }
 
-        /* Image items */
-        .clip-content img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 6px;
-            margin: 0.25rem 0;
-        }
-
         /* Edit mode */
         .clip-item.editing {
             border-color: var(--color-accent-cyan);
@@ -1072,7 +1064,6 @@
                 await itemsRef.doc(item.id).set({
                     content: item.content,
                     isRich: item.isRich || false,
-                    isImage: item.isImage || false,
                     created: item.created
                 });
             } catch (err) {
@@ -1154,16 +1145,6 @@
             return escaped.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
         }
 
-        // Convert image file to base64 data URL
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
-
         // Add item
         function addItem() {
             const html = clipInput.innerHTML.trim();
@@ -1175,7 +1156,6 @@
                 id: String(Date.now()),
                 content: isRich ? sanitizeHtml(html) : text,
                 isRich: isRich,
-                isImage: false,
                 created: Date.now()
             };
 
@@ -1184,19 +1164,6 @@
             hasRichContent = false;
             formatBadge.classList.remove('visible');
             showToast('Item added');
-        }
-
-        // Add image item
-        async function addImageItem(dataUrl) {
-            const item = {
-                id: String(Date.now()),
-                content: dataUrl,
-                isRich: false,
-                isImage: true,
-                created: Date.now()
-            };
-            saveItem(item);
-            showToast('Image added');
         }
 
         // Delete item
@@ -1209,14 +1176,6 @@
         function copyItem(id) {
             const item = items.find(i => i.id === id);
             if (!item) return;
-
-            if (item.isImage) {
-                // For images, copy the data URL
-                navigator.clipboard.writeText(item.content).then(() => {
-                    showToast('Image URL copied');
-                });
-                return;
-            }
 
             if (item.isRich) {
                 try {
@@ -1383,7 +1342,6 @@
         function render(editingId = null) {
             const filtered = searchQuery
                 ? items.filter(item => {
-                    if (item.isImage) return false;
                     const text = item.isRich ? stripHtml(item.content) : item.content;
                     return text.toLowerCase().includes(searchQuery.toLowerCase());
                 })
@@ -1412,10 +1370,6 @@
                 const index = String(filtered.length - i).padStart(2, '0');
 
                 if (isEditing) {
-                    if (item.isImage) {
-                        // Images are not editable
-                        return '';
-                    }
                     if (item.isRich) {
                         return `
                             <div class="clip-item editing" data-id="${item.id}">
@@ -1451,27 +1405,17 @@
                     `;
                 }
 
-                // Type badge
-                let typeBadge = '';
-                if (item.isImage) typeBadge = '<span class="clip-type-badge">img</span>';
-                else if (item.isRich) typeBadge = '<span class="clip-type-badge">rich</span>';
+                const typeBadge = item.isRich ? '<span class="clip-type-badge">rich</span>' : '';
 
-                // Content rendering
                 let contentHtml;
                 let contentClass;
-                if (item.isImage) {
-                    contentClass = 'clip-content';
-                    contentHtml = '<img src="' + item.content + '" alt="Pasted image">';
-                } else if (item.isRich) {
+                if (item.isRich) {
                     contentClass = 'clip-content rich';
                     contentHtml = item.content;
                 } else {
                     contentClass = 'clip-content plain';
                     contentHtml = linkifyText(item.content);
                 }
-
-                // Edit button (not for images)
-                const editBtn = item.isImage ? '' : `<button class="clip-action-btn" onclick="startEdit('${item.id}')">Edit</button>`;
 
                 return `
                     <div class="clip-item" data-id="${item.id}" draggable="true"
@@ -1489,7 +1433,7 @@
                             </div>
                             <div class="clip-actions">
                                 <button class="clip-action-btn" onclick="copyItem('${item.id}')">Copy</button>
-                                ${editBtn}
+                                <button class="clip-action-btn" onclick="startEdit('${item.id}')">Edit</button>
                                 <button class="clip-action-btn delete" onclick="deleteItem('${item.id}')">Del</button>
                             </div>
                         </div>
@@ -1535,23 +1479,8 @@
             }
         });
 
-        // Detect rich paste and image paste in the editor
-        clipInput.addEventListener('paste', async (e) => {
-            // Check for image files in clipboard
-            const clipboardItems = e.clipboardData.items;
-            for (let i = 0; i < clipboardItems.length; i++) {
-                if (clipboardItems[i].type.startsWith('image/')) {
-                    e.preventDefault();
-                    const file = clipboardItems[i].getAsFile();
-                    if (file) {
-                        const dataUrl = await fileToBase64(file);
-                        addImageItem(dataUrl);
-                    }
-                    return;
-                }
-            }
-
-            // Otherwise check for rich text after paste applies
+        // Detect rich paste in the editor
+        clipInput.addEventListener('paste', () => {
             setTimeout(() => {
                 const html = clipInput.innerHTML;
                 hasRichContent = isRichHtml(html);
@@ -1617,23 +1546,9 @@
         });
 
         // Handle paste anywhere on page (when not focused on an input)
-        document.addEventListener('paste', async (e) => {
+        document.addEventListener('paste', (e) => {
             if (document.activeElement === clipInput || document.activeElement === searchInput) return;
             if (document.activeElement && (document.activeElement.classList.contains('edit-area') || document.activeElement.tagName === 'TEXTAREA')) return;
-
-            // Check for image files
-            const clipboardItems = e.clipboardData.items;
-            for (let i = 0; i < clipboardItems.length; i++) {
-                if (clipboardItems[i].type.startsWith('image/')) {
-                    e.preventDefault();
-                    const file = clipboardItems[i].getAsFile();
-                    if (file) {
-                        const dataUrl = await fileToBase64(file);
-                        addImageItem(dataUrl);
-                    }
-                    return;
-                }
-            }
 
             const html = e.clipboardData.getData('text/html');
             const text = e.clipboardData.getData('text/plain');
